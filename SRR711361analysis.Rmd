@@ -1,0 +1,105 @@
+---
+title: "SRR711361 Genome Analysis"
+output: html_notebook
+---
+
+
+```{r}
+df <- read.csv('/Users/vedant_pathak/Developer/bio/good_annotations/csv/SRR711361.annovar.hg38_multianno.csv')
+```
+
+```{r}
+refGene <- df['Func.refGene']
+refGene[!((df['Func.refGene'] == 'intronic') | (df['Func.refGene'] == 'intergenic') | (df['Func.refGene'] == 'exonic'))] = 'other'
+
+table(refGene)
+png(filename="/Users/vedant_pathak/Developer/bio/good_annotations/location_pie.jpg")
+pie(table(refGene), main='Distribution of Location of Mutation')
+dev.off()
+```
+
+```{r}
+indel_cond_1 <- apply(df['Ref'], 2, nchar) != apply(df['Alt'], 2, nchar)
+indel_cond_2 <- (df['Ref'] == '-') | (df['Alt'] == '-')
+indel_cond <- indel_cond_1 | indel_cond_2
+df['Mutation'] <- ''
+df[indel_cond,'Mutation'] <- 'Indel'
+df[!indel_cond,'Mutation'] <- 'SNP'
+barplot(table(df['Mutation']), main='Mutation Type')
+png(filename='/Users/vedant_pathak/Developer/bio/good_annotations/mutation_bar.jpg')
+barplot(table(df['Mutation']), main='Mutation Type')
+dev.off()
+```
+
+```{r}
+has_exonicfunc <- df[df['ExonicFunc.refGene'] != '',]
+t <- table(has_exonicfunc['ExonicFunc.refGene'])
+t['frameshift'] <- t[['frameshift insertion']] + t[['frameshift deletion']]
+t['nonsense'] <- t[['stopgain']]
+t['synonymous'] <- t[['synonymous SNV']]
+t['nonsynonymous'] <- t[['nonsynonymous SNV']]
+to_plot <- t[c('synonymous', 'nonsynonymous', 'frameshift', 'nonsense')]
+barplot(c(matrix(to_plot)), names.arg = names(to_plot))
+png(filename='/Users/vedant_pathak/Developer/bio/good_annotations/shift_bar.jpg')
+barplot(c(matrix(to_plot)), names.arg = names(to_plot))
+dev.off()
+```
+
+```{r}
+t <- table(has_exonicfunc['ExonicFunc.refGene'])
+t[['synonymous SNV']] / nrow(has_exonicfunc)
+t[['nonsynonymous SNV']] / nrow(has_exonicfunc)
+t['frameshift'] <- t[['frameshift insertion']] + t[['frameshift deletion']]
+t[['frameshift']] / nrow(has_exonicfunc)
+t[['stopgain']] / nrow(has_exonicfunc)
+```
+
+```{r}
+good_chrs <- c(unique(df$Chr))[1:24]
+in_good <- df[is.element(df[['Chr']], good_chrs),]
+t <- table(in_good['Chr'])
+plot(t[good_chrs], pch='.', xlab="Chromosome Number", ylab="Number of Mutations", main="Number of Mutations Per Chromomsome", type="o")
+png(filename='/Users/vedant_pathak/Developer/bio/good_annotations/mutations_per_chr.jpg')
+plot(t[good_chrs], pch='.', xlab="Chromosome Number", ylab="Number of Mutations", main="Number of Mutations Per Chromomsome", type="o")
+dev.off()
+```
+```{r}
+genes <- c(5096, 3888, 2976, 2438, 2596, 3010, 2787, 2175, 2270, 2182, 2925, 2539, 1384, 2061, 1827, 1948, 2465, 984, 2493, 1361, 776, 1188, 2218, 583)
+plot(genes, c(matrix(t[good_chrs])), xlab="Number of Genes", ylab="Number of Mutations", main="Correlation Between Number of Mutations and Number of Genes")
+png(filename='/Users/vedant_pathak/Developer/bio/good_annotations/corr.jpg')
+plot(genes, c(matrix(t[good_chrs])), xlab="Number of Genes", ylab="Number of Mutations", main="Correlation Between Number of Mutations and Number of Genes")
+dev.off()
+```
+
+```{r}
+# https://statisticsglobe.com/select-rows-with-partial-string-match-in-r
+install.packages("data.table")
+library("data.table")
+
+install.packages("xtable")
+library("xtable")
+
+df_hq <- read.csv('/Users/vedant_pathak/Developer/bio/good_annotations/csv/SRR711361g50.annovar.hg38_multianno.csv')
+pathogenic <- df_hq[df_hq$CLINSIG %like% 'Pathogenic',]
+pathogenic
+
+```
+```{r}
+with_sift <- df_hq[(df_hq['SIFT_score'] != '') & (df_hq['SIFT_score'] != '.'),]
+with_sift['SIFT_score'] <- sapply(with_sift['SIFT_score'], as.numeric)
+ordered_by_sift <- with_sift[order(with_sift[,"SIFT_score"]),]
+expressed_deleterious <- ordered_by_sift[(ordered_by_sift$Func.refGene == 'exonic'),]
+has_clinsig <- expressed_deleterious[expressed_deleterious$CLINSIG != '',]
+has_rsid <- has_clinsig[has_clinsig$avsnp150 != '', ]
+x <- has_rsid[3,]
+print(x)
+```
+
+```{r}
+genes <- c(248.96, 242.19, 198.3, 190.22, 181.54, 170.81, 159.35, 145.14, 138.4, 133.8, 135.09, 133.28, 114.36, 107.04, 101.99, 90.34, 83.26, 80.37, 58.62, 64.44, 46.71, 50.82, 156.04, 57.23)
+plot(genes, c(matrix(t[good_chrs])), xlab="Number of Genes", ylab="Number of Mutations", main="Correlation Between Number of Mutations and Number of Genes")
+png(filename='/Users/vedant_pathak/Developer/bio/good_annotations/corr_size.jpg')
+plot(genes, c(matrix(t[good_chrs])), xlab="Chromosome Size (Mb)", ylab="Number of Mutations", main="Correlation Between Chromosome Size and Number of Variants")
+dev.off()
+```
+
